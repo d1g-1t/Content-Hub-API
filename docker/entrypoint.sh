@@ -15,14 +15,18 @@ while ! nc -z redis 6379; do
 done
 echo "Redis started"
 
-echo "Creating logs directory..."
+echo "Creating required directories..."
 mkdir -p /home/appuser/web/logs
+mkdir -p /home/appuser/web/static
 
-echo "Collecting static files..."
-python manage.py collectstatic --noinput
+echo "Creating migrations..."
+python manage.py makemigrations --noinput
 
 echo "Running database migrations..."
 python manage.py migrate --noinput
+
+echo "Collecting static files..."
+python manage.py collectstatic --noinput
 
 echo "Creating superuser if not exists..."
 python manage.py shell << END

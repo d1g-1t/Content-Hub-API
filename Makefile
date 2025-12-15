@@ -20,14 +20,38 @@ help: ## Show this help message
 # Docker Commands
 build: ## Build Docker containers
 	@echo "$(GREEN)Building Docker containers...$(NC)"
-	$(DOCKER_COMPOSE) build
+	@for i in 1 2 3; do \
+		if $(DOCKER_COMPOSE) build; then \
+			exit 0; \
+		else \
+			if [ $$i -lt 3 ]; then \
+				echo "$(YELLOW)Retry $$i/3: Build failed, retrying in 5 seconds...$(NC)"; \
+				sleep 5; \
+			else \
+				echo "$(RED)Failed to build after 3 attempts$(NC)"; \
+				exit 1; \
+			fi; \
+		fi; \
+	done
 
 up: ## Start all services in detached mode
 	@echo "$(GREEN)Starting all services...$(NC)"
-	$(DOCKER_COMPOSE) up -d
-	@echo "$(GREEN)Services started! Access the app at http://localhost$(NC)"
-	@echo "$(YELLOW)API Documentation: http://localhost/api/docs/$(NC)"
-	@echo "$(YELLOW)Admin Panel: http://localhost/admin/$(NC)"
+	@for i in 1 2 3; do \
+		if $(DOCKER_COMPOSE) up -d; then \
+			echo "$(GREEN)Services started! Access the app at http://localhost$(NC)"; \
+			echo "$(YELLOW)API Documentation: http://localhost/api/docs/$(NC)"; \
+			echo "$(YELLOW)Admin Panel: http://localhost/admin/$(NC)"; \
+			exit 0; \
+		else \
+			if [ $$i -lt 3 ]; then \
+				echo "$(YELLOW)Retry $$i/3: Starting services failed, retrying in 5 seconds...$(NC)"; \
+				sleep 5; \
+			else \
+				echo "$(RED)Failed to start services after 3 attempts$(NC)"; \
+				exit 1; \
+			fi; \
+		fi; \
+	done
 
 down: ## Stop all services
 	@echo "$(RED)Stopping all services...$(NC)"
@@ -134,13 +158,39 @@ env: ## Create .env file from .env.example
 	fi
 
 # Initial Setup
-setup: env build up migrate createsuperuser collectstatic ## Complete initial setup (one command to rule them all!)
+setup: check-docker env build up wait-for-web ## Complete initial setup (one command to rule them all!)
 	@echo "$(GREEN)✓ Setup complete! Your app is ready.$(NC)"
 	@echo ""
 	@echo "$(GREEN)Access your API:$(NC)"
 	@echo "  • API: http://localhost/api/v1/"
 	@echo "  • Swagger Docs: http://localhost/api/docs/"
 	@echo "  • Admin Panel: http://localhost/admin/"
+	@echo ""
+	@echo "$(YELLOW)Default superuser credentials:$(NC)"
+	@echo "  • Username: admin"
+	@echo "  • Password: admin123"
+
+check-docker: ## Check if Docker is running
+	@echo "$(GREEN)Checking Docker...$(NC)"
+	@if ! docker info > /dev/null 2>&1; then \
+		echo "$(RED)Error: Docker is not running. Please start Docker and try again.$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Docker is running$(NC)"
+
+wait-for-web: ## Wait for web container to be ready
+	@echo "$(GREEN)Waiting for web container to be ready...$(NC)"
+	@for i in $$(seq 1 30); do \
+		if docker-compose ps web | grep -q "Up"; then \
+			echo "$(GREEN)Web container is ready!$(NC)"; \
+			exit 0; \
+		fi; \
+		echo "Waiting... ($$i/30)"; \
+		sleep 2; \
+	done; \
+	echo "$(RED)Web container failed to start$(NC)"; \
+	docker-compose logs web; \
+	exit 1
 
 quick-start: build up ## Quick start without migrations
 	@echo "$(GREEN)Quick start complete!$(NC)"

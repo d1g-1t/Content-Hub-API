@@ -14,9 +14,6 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Production cache settings
-CACHES['default']['OPTIONS']['PARSER_CLASS'] = 'redis.connection.HiredisParser'  # noqa
-
 # Production logging
 LOGGING['handlers']['file']['filename'] = '/var/log/django/content_hub.log'  # noqa
 
